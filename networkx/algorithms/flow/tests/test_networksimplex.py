@@ -1,5 +1,6 @@
 import bz2
 import importlib.resources
+import itertools
 import os
 import pickle
 
@@ -376,6 +377,29 @@ def test_bone_shaped():
     flowCost, H = nx.network_simplex(G)
     assert flowCost == 0
     assert H == {0: {1: 2, 2: 2, 3: 0}, 1: {}, 2: {}, 3: {}, 4: {3: 2}, 5: {3: 2}}
+
+
+def test_false_negative_cycle_with_infinite_capacity():
+    # From #7562
+
+    def build_repro_graph(wAB, wBC, wCD):
+        G = nx.DiGraph()
+        G.add_node("A", demand=-2)
+        G.add_node("B", demand=-4)
+        G.add_node("C", demand=3)
+        G.add_node("D", demand=3)
+        G.add_edge("A", "B", weight=wAB)
+        G.add_edge("B", "C", weight=wBC)
+        G.add_edge("C", "D", weight=wCD)
+        return G
+
+    num_edges = 3
+    repro_weights = (-1, 0, 1)
+
+    for wAB, wBC, wCD in itertools.product(repro_weights, repeat=num_edges):
+        G = build_repro_graph(wAB, wBC, wCD)
+        _, H = nx.network_simplex(G)
+        assert H == {"A": {"B": 2}, "B": {"C": 6}, "C": {"D": 3}, "D": {}}
 
 
 def test_graphs_type_exceptions():
